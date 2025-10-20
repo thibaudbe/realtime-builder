@@ -1,7 +1,7 @@
 'use client'
 
 import type { Block } from '../lib/store'
-import { createTodo } from '../lib/store'
+import { createBlock } from '../lib/store'
 
 export interface BlockProps {
   block: Block
@@ -23,7 +23,7 @@ export function TaskBlock({ block, onDelete }: BlockProps) {
   const addChild = () => {
     const childTitle = prompt('Sub-task title?')
     if (childTitle) {
-      block.children.push(createTodo(childTitle))
+      block.children.push(createBlock(childTitle))
     }
   }
 

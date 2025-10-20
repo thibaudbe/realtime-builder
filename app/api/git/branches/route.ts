@@ -4,9 +4,10 @@ import { gitStore } from '../../../lib/gitStore'
 
 export async function GET(_req: NextRequest) {
   try {
-    const commits = gitStore.listCommits()
+    const branches = gitStore.listBranches()
+    const currentBranch = gitStore.getCurrentBranch()
 
-    return NextResponse.json({ commits })
+    return NextResponse.json({ branches, currentBranch })
   } catch (error) {
     return NextResponse.json(
       { error: (error as Error).message },

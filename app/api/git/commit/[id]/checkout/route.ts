@@ -4,15 +4,15 @@ import { gitStore } from '../../../../../lib/gitStore'
 
 export async function POST(
   _req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const commitId = params.id
-    if (!commitId) {
-      return NextResponse.json({ error: 'commitId required' }, { status: 400 })
+    const { id } = await params
+    if (!id) {
+      return NextResponse.json({ error: 'Missing params' }, { status: 400 })
     }
 
-    const head = gitStore.rollback(commitId)
+    const head = gitStore.checkoutCommit(id)
     if (!head) {
       return NextResponse.json({ error: 'Commit not found' }, { status: 404 })
     }

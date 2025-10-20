@@ -2,7 +2,7 @@ import { v4 as uuid } from 'uuid'
 
 import { getYjsDoc, syncedStore } from '@syncedstore/core'
 
-import { Commit } from './gitStore'
+import { Branch, Commit } from './gitStore'
 
 export interface Block {
   id: string
@@ -37,7 +37,9 @@ interface StoreState {
   blocks: Block[]
   commits: Commit[]
   // Error: Root Object initializer must always be {}
-  head: { [key: string]: any } | { id: string }
+  head: { [key: string]: any } | { id?: string; detached?: boolean }
+  branches: { [key: string]: string | undefined } | Branch
+  currentBranch: { [key: string]: string | undefined } | { id: string }
   [key: string]: any // Add index signature
 }
 
@@ -45,6 +47,8 @@ export const store = syncedStore<StoreState>({
   blocks: [],
   commits: [],
   head: {},
+  branches: {},
+  currentBranch: {},
 })
 const doc = getYjsDoc(store)
 const roomName = 'next-todo-app-demo'
@@ -55,12 +59,7 @@ let netProvider: any
 if (typeof window !== 'undefined') {
   // Dynamic import of providers only in the browser
   import('y-webrtc').then(({ WebrtcProvider }) => {
-    netProvider = new WebrtcProvider(roomName, doc, {
-      // signaling: ['wss://signaling.yjs.dev'], // reliable signaling server
-      // optional: limit the number of connections
-      maxConns: 20,
-      filterBcConns: true,
-    })
+    netProvider = new WebrtcProvider(roomName, doc, { signaling: [] })
 
     // Notify listeners of every status change (for test purposes)
     // netProvider.on('status', (event: { status: string }) => {
@@ -87,10 +86,19 @@ export function connect() {
   netProvider?.connect()
 }
 
-export function createTodo(title: string): Block {
+export function createBlock(title: string): Block {
   return { id: uuid(), type: 'todo', title, completed: false, children: [] }
 }
 
 export function cloneBlocks(blocks: Block[]): Block[] {
   return JSON.parse(JSON.stringify(blocks))
 }
+
+export const localBranchSnapshots: Record<
+  string,
+  {
+    commits: Commit[]
+    head: { id?: string | null }
+    blocks: Block[]
+  }
+> = {}

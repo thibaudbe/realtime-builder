@@ -2,110 +2,79 @@
 
 import { useEffect, useState } from 'react'
 
+import { filterArray } from '@syncedstore/core'
 import { useSyncedStore } from '@syncedstore/react'
-import {
-  QueryClient,
-  QueryClientProvider,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 import { TaskBlock } from './components/task-block'
-import { cloneBlocks, createTodo, store } from './lib/store'
+import { useGitSync } from './hooks/use-git-sync'
+import { Branch } from './lib/gitStore'
+import { createBlock, store } from './lib/store'
+
+function sliceId(id: string) {
+  return id.slice(0, 7)
+}
+
+function formatDate(timestamp: number) {
+  return new Date(timestamp).toLocaleString()
+}
 
 function Editor() {
   const [inputValue, setInputValue] = useState('')
 
   const state = useSyncedStore(store)
 
-  const headId = state.head.id ?? null
-
-  const queryClient = useQueryClient()
-
-  const { data: commitData } = useQuery({
-    queryKey: ['commits'],
-    queryFn: async () => {
-      const res = await fetch('/api/git/commits')
-      return res.json()
-    },
-  })
-
-  const commitMutation = useMutation({
-    mutationFn: async (message: string) => {
-      const blocks = cloneBlocks(state.blocks)
-      const res = await fetch('/api/git/commit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message, blocks }),
-      })
-      if (!res.ok) throw new Error(await res.text())
-      return res.json()
-    },
-    onSuccess: (data) => {
-      const newCommit = data?.commit
-      if (newCommit) {
-        state.commits.push(newCommit)
-        state.head.id = newCommit.id
-      }
-      queryClient.invalidateQueries({ queryKey: ['commits'] })
-    },
-  })
-
-  const rollbackMutation = useMutation({
-    mutationFn: async (commitId: string) => {
-      const res = await fetch(`/api/git/commit/${commitId}/rollback`, {
-        method: 'POST',
-      })
-      if (!res.ok) throw new Error(await res.text())
-      return res.json()
-    },
-    onSuccess: (data) => {
-      if (data?.head) {
-        state.blocks.splice(0, state.blocks.length, ...(data.head.tree || []))
-        state.head.id = data.head.id
-      }
-      queryClient.invalidateQueries({ queryKey: ['commits'] })
-    },
-  })
-
-  const deleteCommitMutation = useMutation({
-    mutationFn: async (commitId: string) => {
-      const res = await fetch(`/api/git/commit/${commitId}`, {
-        method: 'DELETE',
-      })
-      return res.json()
-    },
-    onSuccess: (data) => {
-      state.commits.splice(0, state.commits.length, ...data.commits)
-      state.head.id = data.head?.id || null
-
-      if (data.head) {
-        state.blocks.splice(0, state.blocks.length, ...(data.head.tree || []))
-      } else {
-        state.blocks.splice(0, state.blocks.length)
-      }
-
-      queryClient.invalidateQueries({ queryKey: ['commits'] })
-    },
-  })
+  const {
+    commitData,
+    branchData,
+    commitMutation,
+    checkoutCommitMutation,
+    deleteCommitMutation,
+    createBranchMutation,
+    deleteBranchMutation,
+    checkoutBranchMutation,
+  } = useGitSync()
 
   useEffect(() => {
-    if (commitData?.commits.length === 0) {
-      state.commits.splice(0, state.commits.length)
+    if (!commitData) return
+
+    state.commits.splice(0, state.commits.length, ...commitData.commits)
+
+    if (commitData.commits?.length > 0) {
+      state.head.id = commitData.commits[commitData.commits.length - 1].id
+    } else {
       state.head.id = null
     }
-
-    if (commitData?.commits?.length > 0 && state.commits.length === 0) {
-      state.commits.push(...commitData.commits)
-      state.head.id = commitData.commits[commitData.commits.length - 1].id
-    }
   }, [commitData, state])
+
+  useEffect(() => {
+    if (!branchData) return
+
+    const { branches = {}, currentBranch } = branchData
+
+    Object.keys(state.branches).forEach((key) => {
+      if (!(key in branches)) {
+        delete state.branches[key]
+      }
+    })
+
+    Object.entries(branches).forEach(([id, branch]) => {
+      if (!state.branches[id]) {
+        state.branches[id] = branch
+      } else {
+        Object.assign(state.branches[id], branch)
+      }
+    })
+
+    if (currentBranch?.id) {
+      state.currentBranch.id = currentBranch.id
+    }
+  }, [branchData, state])
 
   const addRootBlock = () => {
     const title = inputValue.trim()
     if (title) {
-      state.blocks.push(createTodo(title))
+      state.blocks.push(createBlock(title))
       setInputValue('')
     }
   }
@@ -124,6 +93,7 @@ function Editor() {
     <div style={{ padding: 24, fontFamily: 'sans-serif' }}>
       <h1>Collaborative Versioned Todo List (Git-like)</h1>
 
+      {/* Online/offline toggle */}
       {/* <div style={{ marginBottom: 16 }}>
         <span style={{ marginRight: 8 }}>Status:</span>
         <label style={{ marginRight: 12 }}>
@@ -152,8 +122,92 @@ function Editor() {
         </label>
       </div> */}
 
-      {/* {headId ? <p>Current commit: {headId.slice(0, 7)}</p> : <p>No commit</p>} */}
+      {/* Branches */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+        }}
+      >
+        <h2>Branches</h2>
+        <button
+          onClick={() => {
+            const name = prompt('Branch name?')
+            if (!name) return
+            createBranchMutation.mutate(name)
+          }}
+        >
+          Create branch
+        </button>
+      </div>
 
+      {state.head.detached && (
+        <p style={{ backgroundColor: 'orange', padding: 8 }}>
+          Detached HEAD from Branch
+        </p>
+      )}
+
+      <div>
+        <ul style={{ listStyle: 'none', paddingLeft: 0 }}>
+          {Object.keys(state.branches).length === 0 ? (
+            <li style={{ marginBottom: 4 }}>
+              <span>No branches</span>
+            </li>
+          ) : (
+            Object.values<Branch>(state.branches as Branch[]).map((branch) => (
+              <li key={branch.id} style={{ marginBottom: 4 }}>
+                <span
+                  style={{
+                    width: '300px',
+                    display: 'inline-block',
+                    fontWeight:
+                      branch.id === state.currentBranch.id ? 'bold' : 'normal',
+                  }}
+                >
+                  <code>{sliceId(branch.id)}</code> – {branch.name}
+                </span>
+
+                {(branch.id !== state.currentBranch.id ||
+                  state.head.detached) && (
+                  <>
+                    <button
+                      style={{ marginLeft: 8 }}
+                      disabled={
+                        checkoutBranchMutation.isPending ||
+                        deleteBranchMutation.isPending
+                      }
+                      onClick={() => checkoutBranchMutation.mutate(branch.id)}
+                    >
+                      {state.head.detached ? 'Re-attach' : 'Checkout'}
+                    </button>
+                    <button
+                      style={{ marginLeft: 4 }}
+                      disabled={
+                        checkoutBranchMutation.isPending ||
+                        deleteBranchMutation.isPending
+                      }
+                      onClick={() => deleteBranchMutation.mutate(branch.id)}
+                    >
+                      Delete
+                    </button>
+                  </>
+                )}
+
+                {branch.id === state.currentBranch.id &&
+                  !state.head.detached && (
+                    <span style={{ marginLeft: 8 }}>(current)</span>
+                  )}
+              </li>
+            ))
+          )}
+        </ul>
+      </div>
+
+      {/* Blocks */}
+      <h2>Tasks (staged)</h2>
+
+      {/* Commit Actions */}
       <div style={{ marginBottom: 16 }}>
         <input
           type="text"
@@ -163,10 +217,17 @@ function Editor() {
           onKeyDown={(e) => {
             if (e.key === 'Enter') addRootBlock()
           }}
-          style={{ width: '60%', marginRight: 8 }}
+          style={{ width: '60%', marginRight: 4 }}
         />
         <button onClick={addRootBlock}>Add</button>
-        <button onClick={handleCommit} style={{ marginLeft: 16 }}>
+        <button
+          onClick={handleCommit}
+          disabled={state.head.detached || state.blocks.length === 0}
+          title={
+            state.head.detached ? 'Cannot commit in detached HEAD' : undefined
+          }
+          style={{ marginLeft: 8 }}
+        >
           Commit
         </button>
       </div>
@@ -183,9 +244,20 @@ function Editor() {
         ))
       )}
 
-      <h2 style={{ marginTop: 24 }}>Commit History</h2>
+      {state.blocks.length > 0 && (
+        <button
+          style={{ marginTop: 10 }}
+          onClick={() => {
+            filterArray(state.blocks, () => false)
+          }}
+        >
+          Clear list
+        </button>
+      )}
 
-      <ul>
+      {/* Commit History */}
+      <h2>Commit History</h2>
+      <ul style={{ listStyle: 'none', paddingLeft: 0 }}>
         {state.commits.length === 0 ? (
           <li style={{ marginBottom: 8 }}>No commits</li>
         ) : (
@@ -194,19 +266,25 @@ function Editor() {
               key={commit.id}
               style={{
                 marginBottom: 8,
-                fontWeight: commit.id === headId ? 'bold' : 'normal',
+                fontWeight: commit.id === state.head.id ? 'bold' : 'normal',
               }}
             >
-              <code>{commit.id.slice(0, 7)}</code> – {commit.message}{' '}
-              <small>({new Date(commit.timestamp).toLocaleString()})</small>
+              {commit.id === state.head.id && <span>[HEAD] </span>}
+              <code>{sliceId(commit.id)}</code> – {commit.message}{' '}
+              <small>({formatDate(commit.timestamp)})</small>
               <button
                 style={{
                   marginLeft: 8,
                 }}
-                disabled={commit.id === headId || rollbackMutation.isPending}
-                onClick={() => rollbackMutation.mutate(commit.id)}
+                disabled={
+                  (commit.id === state.head.id && state.head.detached) ||
+                  checkoutCommitMutation.isPending
+                }
+                onClick={() => checkoutCommitMutation.mutate(commit.id)}
               >
-                {rollbackMutation.isPending ? 'Rolling back...' : 'Rollback'}
+                {checkoutCommitMutation.isPending
+                  ? 'Checking out...'
+                  : 'Checkout'}
               </button>
               <button
                 disabled={deleteCommitMutation.isPending}
