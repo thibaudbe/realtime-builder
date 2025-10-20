@@ -8,7 +8,7 @@ export interface BlockProps {
   onDelete?: () => void
 }
 
-export function TaskBlock({ block, onDelete }: BlockProps) {
+export function TaskTreeItem({ block, onDelete }: BlockProps) {
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
     block.title = value
@@ -61,7 +61,9 @@ export function TaskBlock({ block, onDelete }: BlockProps) {
         const removeChild = () => {
           block.children.splice(index, 1)
         }
-        return <TaskBlock key={child.id} block={child} onDelete={removeChild} />
+        return (
+          <TaskTreeItem key={child.id} block={child} onDelete={removeChild} />
+        )
       })}
     </div>
   )

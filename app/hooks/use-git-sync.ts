@@ -40,7 +40,6 @@ export function useGitSync() {
     onSuccess: (data) => {
       const newCommit = data.commit as Commit
 
-      // FIXME: check the order of commits so we don't have to unshift
       state.commits.push(newCommit)
       state.head.id = newCommit.id
 
