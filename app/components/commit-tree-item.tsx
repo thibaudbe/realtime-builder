@@ -2,15 +2,13 @@
 
 import { useSyncedStore } from '@syncedstore/react'
 
-import { useGitSync } from '../hooks/use-git-sync'
+import { git } from '../lib/git-synced-store'
 import { store } from '../lib/store'
 import { formatDate, sliceId } from '../utils'
 import { type Commit } from '../lib/gitStore'
 
 export function CommitTreeItem({ commit }: { commit: Commit }) {
   const state = useSyncedStore(store)
-
-  const { checkoutCommitMutation, deleteCommitMutation } = useGitSync()
 
   return (
     <li
@@ -26,20 +24,12 @@ export function CommitTreeItem({ commit }: { commit: Commit }) {
         style={{
           marginLeft: 8,
         }}
-        disabled={
-          (commit.id === state.head.id && state.head.detached) ||
-          checkoutCommitMutation.isPending
-        }
-        onClick={() => checkoutCommitMutation.mutate(commit.id)}
+        disabled={commit.id === state.head.id && state.head.detached}
+        onClick={() => git.checkoutCommit(commit.id)}
       >
-        {checkoutCommitMutation.isPending ? 'Checking out...' : 'Checkout'}
+        Checkout
       </button>
-      <button
-        disabled={deleteCommitMutation.isPending}
-        onClick={() => deleteCommitMutation.mutate(commit.id)}
-      >
-        {deleteCommitMutation.isPending ? 'Deleting...' : 'Delete'}
-      </button>
+      <button onClick={() => git.deleteCommit(commit.id)}>Delete</button>
     </li>
   )
 }

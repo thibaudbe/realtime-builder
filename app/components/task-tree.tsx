@@ -1,18 +1,20 @@
+'use client'
+
 import { useState } from 'react'
 
 import { filterArray } from '@syncedstore/core'
 import { useSyncedStore } from '@syncedstore/react'
 
-import { useGitSync } from '../hooks/use-git-sync'
+import { git } from '../lib/git-synced-store'
 import { createBlock, store } from '../lib/store'
 import { TaskTreeItem } from './task-tree-item'
+
+export const dynamic = 'force-dynamic'
 
 export function TaskTree() {
   const [inputValue, setInputValue] = useState('')
 
   const state = useSyncedStore(store)
-
-  const { commitMutation } = useGitSync()
 
   const addRootBlock = () => {
     const title = inputValue.trim()
@@ -25,12 +27,12 @@ export function TaskTree() {
   const handleCommit = () => {
     const message = prompt('Commit message?')
     if (!message) return
-    commitMutation.mutate(message)
+    git.commit(message)
   }
 
   return (
     <div>
-      <h2>Tasks (staged)</h2>
+      <h2>Tasks (staged) {state.blocks.length}</h2>
 
       {/* Commit Actions */}
       <div style={{ marginBottom: 16 }}>
@@ -45,7 +47,9 @@ export function TaskTree() {
           style={{ width: '60%', marginRight: 4 }}
         />
 
-        <button onClick={addRootBlock}>Add</button>
+        <button disabled={!inputValue} onClick={addRootBlock}>
+          Add
+        </button>
 
         <button
           onClick={handleCommit}

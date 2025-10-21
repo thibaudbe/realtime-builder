@@ -2,15 +2,14 @@
 
 import { useSyncedStore } from '@syncedstore/react'
 
-import { useGitSync } from '../hooks/use-git-sync'
-import { type Branch } from '../lib/gitStore'
+import { git } from '../lib/git-synced-store'
 import { store } from '../lib/store'
 import { BranchTreeItem } from './branch-tree-item'
 
+export const dynamic = 'force-dynamic'
+
 export function BranchTree() {
   const state = useSyncedStore(store)
-
-  const { createBranchMutation } = useGitSync()
 
   return (
     <div>
@@ -26,7 +25,7 @@ export function BranchTree() {
           onClick={() => {
             const name = prompt('Branch name?')
             if (!name) return
-            createBranchMutation.mutate(name)
+            git.createBranch(name)
           }}
         >
           Create branch
@@ -41,9 +40,9 @@ export function BranchTree() {
 
       {Object.keys(state.branches).length === 0 && <p>No branches</p>}
 
-      {Object.keys(state.branches).length === 0 && (
+      {Object.keys(state.branches).length !== 0 && (
         <ul style={{ listStyle: 'none', paddingLeft: 0 }}>
-          {Object.values<Branch>(state.branches as Branch[]).map((branch) => (
+          {Object.values(state.branches).map((branch) => (
             <BranchTreeItem key={branch.id} branch={branch} />
           ))}
         </ul>

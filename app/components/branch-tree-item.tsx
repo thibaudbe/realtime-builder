@@ -2,15 +2,13 @@
 
 import { useSyncedStore } from '@syncedstore/react'
 
-import { useGitSync } from '../hooks/use-git-sync'
+import { git } from '../lib/git-synced-store'
 import type { Branch } from '../lib/gitStore'
 import { store } from '../lib/store'
 import { sliceId } from '../utils'
 
 export function BranchTreeItem({ branch }: { branch: Branch }) {
   const state = useSyncedStore(store)
-
-  const { deleteBranchMutation, checkoutBranchMutation } = useGitSync()
 
   return (
     <li key={branch.id} style={{ marginBottom: 4 }}>
@@ -28,19 +26,13 @@ export function BranchTreeItem({ branch }: { branch: Branch }) {
         <>
           <button
             style={{ marginLeft: 8 }}
-            disabled={
-              checkoutBranchMutation.isPending || deleteBranchMutation.isPending
-            }
-            onClick={() => checkoutBranchMutation.mutate(branch.id)}
+            onClick={() => git.checkoutBranch(branch.id)}
           >
             {state.head.detached ? 'Re-attach' : 'Checkout'}
           </button>
           <button
             style={{ marginLeft: 4 }}
-            disabled={
-              checkoutBranchMutation.isPending || deleteBranchMutation.isPending
-            }
-            onClick={() => deleteBranchMutation.mutate(branch.id)}
+            onClick={() => git.deleteBranch(branch.id)}
           >
             Delete
           </button>

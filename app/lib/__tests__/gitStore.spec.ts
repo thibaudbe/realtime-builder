@@ -122,25 +122,23 @@ describe('gitStore', () => {
     })
 
     it('should isolate commits per branch', () => {
+      const main = gitStore.getCurrentBranch()
       gitStore.add([{ id: '1', type: 'todo', title: 'A', children: [] }])
-      const c1 = gitStore.commit('main-c1')
+      const c1 = gitStore.commit('c1')
 
       // new branch
       const b2 = gitStore.createBranch('feature')
       gitStore.checkoutBranch(b2.id)
-      console.log(gitStore.listCommits())
-      expect(gitStore.listCommits()).toHaveLength(0)
+      expect(gitStore.listCommits()).toHaveLength(1)
 
       gitStore.add([
         { id: '1', type: 'todo', title: 'A', children: [] },
         { id: '2', type: 'todo', title: 'B', children: [] },
       ])
-      gitStore.commit('feat-c1')
-      expect(gitStore.listCommits()).toHaveLength(1)
+      gitStore.commit('c2')
+      expect(gitStore.listCommits()).toHaveLength(2)
 
       // back to main
-      const bs = gitStore.listBranches()
-      const main = bs.find((b) => b.name === 'default')
       gitStore.checkoutBranch(main.id)
 
       expect(gitStore.listCommits()).toHaveLength(1)
@@ -201,6 +199,8 @@ describe('gitStore', () => {
     })
 
     it.skip('should clone full history when fullyClone = true', () => {
+      const main = gitStore.getCurrentBranch()!
+
       gitStore.add([{ id: '1', type: 'todo', title: 'A', children: [] }])
       const c1 = gitStore.commit('c1')
       gitStore.add([
@@ -210,35 +210,28 @@ describe('gitStore', () => {
       const c2 = gitStore.commit('c2')
       expect(gitStore.getHead()?.id).toBe(c2.id)
 
-      const b3 = gitStore.cloneBranch('deep-feature', true)
+      const b3 = gitStore.cloneBranch('b3', true)
       expect(b3).toHaveProperty('id')
-      expect(b3.name).toBe('deep-feature')
+      expect(b3.name).toBe('b3')
       expect(b3.headId).not.toBeUndefined()
       expect(b3.headId).not.toBe(c2.id)
 
       gitStore.checkoutBranch(b3.id)
-      const commitsOnNew = gitStore.listCommits()
-      expect(commitsOnNew.length).toBe(2)
-      const messages = commitsOnNew.map((c) => c.message)
+      const csB3 = gitStore.listCommits()
+      expect(csB3.length).toBe(2)
+      const messages = csB3.map((c) => c.message)
       expect(messages).toEqual(['c1', 'c2'])
 
-      expect(commitsOnNew[0].id).not.toBe(c1.id)
-      expect(commitsOnNew[1].id).not.toBe(c2.id)
+      expect(csB3[0].id).not.toBe(c1.id)
+      expect(csB3[1].id).not.toBe(c2.id)
 
-      expect(commitsOnNew[1].parentId).toBe(commitsOnNew[0].id)
-      expect(commitsOnNew[0].parentId).toBeUndefined()
+      expect(csB3[1].parentId).toBe(csB3[0].id)
+      expect(csB3[0].parentId).toBeUndefined()
 
-      const defaultBranch = gitStore
-        .listBranches()
-        .find((b) => b.name === 'default')
-      expect(defaultBranch).toBeDefined()
-      gitStore.checkoutBranch(defaultBranch!.id)
-
-      const commitsOnDefaultAgain = gitStore.listCommits()
-      expect(commitsOnDefaultAgain.length).toBe(2)
-      expect(commitsOnDefaultAgain.map((c) => c.id)).toEqual(
-        [c2.id, c1.id].sort().reverse(),
-      )
+      gitStore.checkoutBranch(main.id)
+      const csMain = gitStore.listCommits()
+      expect(csMain.length).toBe(2)
+      expect(csMain.map((c) => c.id)).toEqual([c2.id, c1.id])
     })
   })
 })
