@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-import { gitStore } from '../../../../../lib/gitStore'
+import { gitStore } from '../../../../../lib/git-store'
 
 export async function POST(
   _req: NextRequest,

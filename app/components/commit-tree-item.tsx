@@ -5,7 +5,7 @@ import { useSyncedStore } from '@syncedstore/react'
 import { git } from '../lib/git-synced-store'
 import { store } from '../lib/store'
 import { formatDate, sliceId } from '../utils'
-import { type Commit } from '../lib/gitStore'
+import { type Commit } from '../lib/git-store'
 
 export function CommitTreeItem({ commit }: { commit: Commit }) {
   const state = useSyncedStore(store)

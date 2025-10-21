@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { GitStore } from './../gitStore'
+import { GitStore } from '../git-store'
 
 describe('gitStore', () => {
   let gitStore: GitStore

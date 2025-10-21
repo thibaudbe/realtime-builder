@@ -2,7 +2,7 @@ import { v4 as uuid } from 'uuid'
 
 import { filterArray } from '@syncedstore/core'
 
-import type { Branch, Commit } from './gitStore'
+import type { Branch, Commit } from './git-store'
 import { type Store, type Block, store } from './store'
 
 export class GitSyncedStore {
@@ -181,16 +181,12 @@ export class GitSyncedStore {
       const commit = this.state.commits.find((c) => c.id === currentId)
       if (!commit) break
 
-      // 🧱 Protection contre la corruption :
-      // on arrête si le commit n'appartient pas à la branche actuelle
-      // et qu'il n'est pas un ancêtre direct du head de cette branche
       if (commit.branchId !== branchId) {
         const branch = this.state.branches[branchId]
         const branchHead = branch?.headId
           ? this.state.commits.find((c) => c.id === branch.headId)
           : undefined
 
-        // Si le head actuel ne descend pas de ce commit, on arrête
         const isAncestor = branchHead
           ? this.isAncestor(commit.id, branchHead.id)
           : false

@@ -2,8 +2,8 @@
 
 import { useSyncedStore } from '@syncedstore/react'
 
+import type { Branch } from '../lib/git-store'
 import { git } from '../lib/git-synced-store'
-import type { Branch } from '../lib/gitStore'
 import { store } from '../lib/store'
 import { sliceId } from '../utils'
 

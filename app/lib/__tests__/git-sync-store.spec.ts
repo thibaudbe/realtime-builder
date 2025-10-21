@@ -4,8 +4,8 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import { syncedStore } from '@syncedstore/core'
 
+import type { Branch, Commit } from '../git-store'
 import { GitSyncedStore } from '../git-synced-store'
-import type { Branch, Commit } from '../gitStore'
 import type { Block } from '../store'
 
 function createMockStore() {

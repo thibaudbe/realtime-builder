@@ -4,7 +4,7 @@ import { HocuspocusProvider } from '@hocuspocus/provider'
 import { getYjsDoc, syncedStore } from '@syncedstore/core'
 
 import { useProviderStatus } from '../store/use-provider-status.store'
-import { Branch, Commit } from './gitStore'
+import { Branch, Commit } from './git-store'
 
 export interface Block {
   id: string
